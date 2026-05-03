@@ -1,6 +1,6 @@
-fastapi
-uvicorn
-watchdog
-cryptography
-colorama
-sse_starlette
+fastapi==0.136.1
+uvicorn==0.23.0
+watchdog==6.0.0
+cryptography==47.0.0
+colorama==0.4.6
+sse-starlette==3.4.1
