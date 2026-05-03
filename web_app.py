@@ -43,6 +43,15 @@ def get_status():
     is_active = monitor.observer is not None and monitor.observer.is_alive()
     return {"active": is_active}
 
+@app.post("/api/simulate")
+def simulate_breach():
+    import time
+    os.makedirs("SensitiveData", exist_ok=True)
+    file_path = os.path.join("SensitiveData", f"simulated_leak_{int(time.time())}.txt")
+    with open(file_path, "w") as f:
+        f.write("Simulated sensitive data access for demonstration purposes.")
+    return {"status": "Simulated breach triggered", "file": file_path}
+
 @app.get("/api/report")
 def download_report():
     report_file = "web_security_report.txt"
