@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+logs.db
+secret.key
+SensitiveData/
+SimulatedUSB/
+*.txt
+!requirements.txt
+desktop_security_report.txt
+web_security_report.txt
+security_report.txt
+.env

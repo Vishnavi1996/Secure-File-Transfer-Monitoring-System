@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛡️ Security Monitor</h1>
+            <div class="status-indicator" id="statusIndicator">
+                <span class="dot"></span>
+                <span id="statusText">Checking status...</span>
+            </div>
+        </header>
+
+        <div class="controls glass-panel">
+            <button id="startBtn" class="btn primary">▶ Start Monitoring</button>
+            <button id="stopBtn" class="btn danger">■ Stop</button>
+            <button id="reportBtn" class="btn secondary">⬇ Download Audit Report</button>
+        </div>
+
+        <div class="alerts-section glass-panel">
+            <h2>Live Alerts</h2>
+            <p class="subtitle">Logs are hidden and securely encrypted. Only real-time alerts are shown here.</p>
+            <div class="alert-list" id="alertList">
+                <!-- Alerts will be injected here -->
+                <div class="alert item-placeholder">No alerts yet. System is standing by.</div>
+            </div>
+        </div>
+    </div>
+    <script src="/static/script.js"></script>
+</body>
+</html>
