@@ -19,18 +19,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Get the directory where this file is located
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Serve static files for the frontend
-app.mount("/static", StaticFiles(directory="static"), name="static")
+static_dir = os.path.join(BASE_DIR, "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 @app.get("/")
 def read_root():
-    return FileResponse("static/index.html")
+    static_index = os.path.join(BASE_DIR, "static", "index.html")
+    if os.path.exists(static_index):
+        return FileResponse(static_index)
+    return {"message": "Welcome to Secure File Transfer Monitoring System"}
 
 @app.post("/api/start")
 def start_monitor():
-    os.makedirs("SensitiveData", exist_ok=True)
-    os.makedirs("SimulatedUSB", exist_ok=True)
-    monitor.start_monitoring("SensitiveData")
+    sensitive_data_dir = os.path.join(BASE_DIR, "SensitiveData")
+    simulated_usb_dir = os.path.join(BASE_DIR, "SimulatedUSB")
+    os.makedirs(sensitive_data_dir, exist_ok=True)
+    os.makedirs(simulated_usb_dir, exist_ok=True)
+    monitor.start_monitoring(sensitive_data_dir)
     return {"status": "Monitoring Started"}
 
 @app.post("/api/stop")
@@ -46,15 +56,16 @@ def get_status():
 @app.post("/api/simulate")
 def simulate_breach():
     import time
-    os.makedirs("SensitiveData", exist_ok=True)
-    file_path = os.path.join("SensitiveData", f"simulated_leak_{int(time.time())}.txt")
+    sensitive_data_dir = os.path.join(BASE_DIR, "SensitiveData")
+    os.makedirs(sensitive_data_dir, exist_ok=True)
+    file_path = os.path.join(sensitive_data_dir, f"simulated_leak_{int(time.time())}.txt")
     with open(file_path, "w") as f:
         f.write("Simulated sensitive data access for demonstration purposes.")
     return {"status": "Simulated breach triggered", "file": file_path}
 
 @app.get("/api/report")
 def download_report():
-    report_file = "web_security_report.txt"
+    report_file = os.path.join(BASE_DIR, "web_security_report.txt")
     success = report.generate_report(report_file)
     if success and os.path.exists(report_file):
         return FileResponse(report_file, media_type="text/plain", filename="Security_Audit_Report.txt")
