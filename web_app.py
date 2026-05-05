@@ -1,108 +1,123 @@
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Request
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
-from sse_starlette.sse import EventSourceResponse
-import asyncio
-import json
+from flask import Flask, render_template, jsonify, send_file
+import time
 import os
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
-from core import monitor, report, alerts
+app = Flask(__name__)
 
-app = FastAPI(title="Secure File Transfer Monitoring System")
+monitoring = False
+alerts = []
+observer = None
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+WATCH_FOLDER = "SensitiveData"
 
-# Get the directory where this file is located
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Serve static files for the frontend
-static_dir = os.path.join(BASE_DIR, "static")
-if os.path.exists(static_dir):
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+# 🔥 HANDLE FILE EVENTS (NO DUPLICATES)
+class MonitorHandler(FileSystemEventHandler):
+    last_events = {}
 
-@app.get("/")
-def read_root():
-    static_index = os.path.join(BASE_DIR, "static", "index.html")
-    if os.path.exists(static_index):
-        return FileResponse(static_index)
-    return {"message": "Welcome to Secure File Transfer Monitoring System"}
+    def log_event(self, event_type, file_path):
+        filename = os.path.basename(file_path)
+        key = f"{event_type}-{filename}"
 
-@app.post("/api/start")
-def start_monitor():
-    sensitive_data_dir = os.path.join(BASE_DIR, "SensitiveData")
-    simulated_usb_dir = os.path.join(BASE_DIR, "SimulatedUSB")
-    os.makedirs(sensitive_data_dir, exist_ok=True)
-    os.makedirs(simulated_usb_dir, exist_ok=True)
-    monitor.start_monitoring(sensitive_data_dir)
-    return {"status": "Monitoring Started"}
+        current_time = time.time()
 
-@app.post("/api/stop")
-def stop_monitor():
-    monitor.stop_monitoring()
-    return {"status": "Monitoring Stopped"}
+        # ⛔ Ignore duplicate same event within 2 sec
+        if key in self.last_events:
+            if current_time - self.last_events[key] < 2:
+                return
 
-@app.get("/api/status")
-def get_status():
-    is_active = monitor.observer is not None and monitor.observer.is_alive()
-    return {"active": is_active}
+        self.last_events[key] = current_time
 
-@app.post("/api/simulate")
-def simulate_breach():
-    import time
-    sensitive_data_dir = os.path.join(BASE_DIR, "SensitiveData")
-    os.makedirs(sensitive_data_dir, exist_ok=True)
-    file_path = os.path.join(sensitive_data_dir, f"simulated_leak_{int(time.time())}.txt")
-    with open(file_path, "w") as f:
-        f.write("Simulated sensitive data access for demonstration purposes.")
-    return {"status": "Simulated breach triggered", "file": file_path}
+        alerts.append({
+            "message": f"{event_type}: {filename}",
+            "time": time.strftime("%H:%M:%S")
+        })
 
-@app.get("/api/report")
-def download_report():
-    report_file = os.path.join(BASE_DIR, "web_security_report.txt")
-    success = report.generate_report(report_file)
-    if success and os.path.exists(report_file):
-        return FileResponse(report_file, media_type="text/plain", filename="Security_Audit_Report.txt")
-    raise HTTPException(status_code=500, detail="Failed to generate report")
+    def on_created(self, event):
+        if not event.is_directory:
+            self.log_event("File created", event.src_path)
 
-@app.get("/api/alerts")
-async def stream_alerts(request: Request):
-    """Server-Sent Events endpoint to stream alerts to the frontend."""
-    async def event_generator():
-        q = asyncio.Queue()
-        loop = asyncio.get_running_loop()
-        
-        def callback(alert_json_str):
-            try:
-                loop.call_soon_threadsafe(q.put_nowait, alert_json_str)
-            except Exception:
-                pass
-                
-        alerts.subscribe(callback)
-        
-        try:
-            while True:
-                if await request.is_disconnected():
-                    break
-                    
-                try:
-                    alert_json_str = await asyncio.wait_for(q.get(), timeout=1.0)
-                    yield alert_json_str
-                except asyncio.TimeoutError:
-                    pass
-        finally:
-            alerts.unsubscribe(callback)
-            
-    return EventSourceResponse(event_generator())
+    def on_modified(self, event):
+        if not event.is_directory:
+            self.log_event("File modified", event.src_path)
 
-if __name__ == "__main__":
-    import uvicorn
-    import os
-    port = int(os.environ.get("PORT", 8080))
-    uvicorn.run(app, host="127.0.0.1", port=port)
+    def on_deleted(self, event):
+        if not event.is_directory:
+            self.log_event("File deleted", event.src_path)
+
+
+# ▶ START MONITORING
+@app.route('/start', methods=['POST'])
+def start():
+    global monitoring, observer
+
+    if not monitoring:
+        event_handler = MonitorHandler()
+        observer = Observer()
+        observer.schedule(event_handler, WATCH_FOLDER, recursive=True)
+        observer.start()
+        monitoring = True
+
+        # clear old alerts
+        alerts.clear()
+
+        alerts.append({
+            "message": "Monitoring started",
+            "time": time.strftime("%H:%M:%S")
+        })
+
+    return jsonify({"status": "active"})
+
+
+# ⏹ STOP MONITORING
+@app.route('/stop', methods=['POST'])
+def stop():
+    global monitoring, observer
+
+    if monitoring and observer:
+        observer.stop()
+        observer.join()
+        monitoring = False
+
+        alerts.append({
+            "message": "Monitoring stopped",
+            "time": time.strftime("%H:%M:%S")
+        })
+
+    return jsonify({"status": "inactive"})
+
+
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+
+@app.route('/status')
+def status():
+    return jsonify({"monitoring": monitoring})
+
+
+@app.route('/alerts')
+def get_alerts():
+    return jsonify(alerts[-10:])  # last 10 alerts
+
+
+@app.route('/download')
+def download():
+    filename = "audit_report.txt"
+
+    with open(filename, "w") as f:
+        f.write("=== Audit Report ===\n\n")
+        for a in alerts:
+            f.write(f"{a['time']} - {a['message']}\n")
+
+    return send_file(filename, as_attachment=True)
+
+
+if __name__ == '__main__':
+    if not os.path.exists(WATCH_FOLDER):
+        os.makedirs(WATCH_FOLDER)
+
+    app.run(debug=True)
