@@ -1,6 +1,0 @@
-fastapi
-uvicorn
-watchdog
-cryptography
-colorama
-sse_starlette
