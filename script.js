@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
     const reportBtn = document.getElementById('reportBtn');
+    const simulateBtn = document.getElementById('simulateBtn');
     const statusIndicator = document.getElementById('statusIndicator');
     const statusText = document.getElementById('statusText');
     const alertList = document.getElementById('alertList');
@@ -55,9 +56,14 @@ document.addEventListener('DOMContentLoaded', () => {
         addAlert("System", "Stopped monitoring", "info");
     });
 
+    simulateBtn.addEventListener('click', () => {
+        addAlert("Simulated Breach", "Sensitive data movement was detected.", "critical");
+        addAlert("System", "Unauthorized transfer simulation completed.", "warning");
+    });
+
     reportBtn.addEventListener('click', () => {
-        addAlert("Audit Report", "Audit report downloaded (simulated)", "info");
-        alert("Audit report would be downloaded (simulated demo)");
+        addAlert("Audit Report", "Audit report download simulated.", "info");
+        alert("Audit report would be downloaded in a real deployment.");
     });
 
     // Initialize UI
