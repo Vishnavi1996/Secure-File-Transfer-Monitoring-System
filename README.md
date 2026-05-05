@@ -55,6 +55,7 @@ The CLI provides terminal-based, color-coded alerts.
 ```bash
 # Start monitoring and viewing live alerts
 python cli.py start
+python cli.py stop
 
 # Generate the audit report
 python cli.py report
